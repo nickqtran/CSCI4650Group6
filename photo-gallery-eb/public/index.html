@@ -1,43 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Minimal S3 Photo Gallery</title>
+    <title>Minimal Photo Gallery</title>
+    <style>
+        #gallery img {
+            width: 200px;
+            margin: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>My S3 Photo Gallery</h1>
+    <h1>My Photo Gallery</h1>
     <div id="gallery"></div>
 
     <script>
-        const bucket = "photogalleryproject";
-        const region = "us-east-1";
-        const baseUrl = `https://${bucket}.s3.${region}.amazonaws.com/`;
-
-        async function loadImages() {
+        async function loadPhotos() {
             const galleryDiv = document.getElementById("gallery");
 
-            // Fetch bucket listing (requires public bucket)
-            const res = await fetch(baseUrl);
-            const text = await res.text();
+            try {
+                const response = await fetch('/api/photos'); // backend API
+                const photos = await response.json();
 
-            // Parse XML to get keys
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(text, "text/xml");
-            const keys = xml.getElementsByTagNameNS("http://s3.amazonaws.com/doc/2006-03-01/", "Key");
-
-            for (let i = 0; i < keys.length; i++) {
-                const file = keys[i].textContent;
-
-                if (file.match(/\.(jpg|jpeg|png|gif)$/i)) {
-                    const img = document.createElement("img");
-                    img.src = baseUrl + file;
-                    img.style.width = "200px";
-                    img.style.margin = "10px";
+                photos.forEach(photo => {
+                    const img = document.createElement('img');
+                    img.src = photo.s3Url;
+                    img.alt = photo.description || photo.fileName;
                     galleryDiv.appendChild(img);
-                }
+                });
+            } catch (err) {
+                console.error('Failed to load photos:', err);
+                galleryDiv.textContent = 'Unable to load photos at this time.';
             }
         }
 
-        loadImages();
+        window.onload = loadPhotos;
     </script>
 </body>
 </html>
+
