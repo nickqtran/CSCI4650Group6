@@ -11,14 +11,24 @@
 </head>
 <body>
     <h1>My Photo Gallery</h1>
+
+    <!-- Upload form -->
+    <form id="uploadForm">
+        <input type="file" id="photoInput" name="photo" required>
+        <input type="text" id="descriptionInput" placeholder="Description">
+        <button type="submit">Upload</button>
+    </form>
+
     <div id="gallery"></div>
-    <h1> TEST !</h1>
+
     <script>
+        // Load existing photos from DynamoDB
         async function loadPhotos() {
             const galleryDiv = document.getElementById("gallery");
+            galleryDiv.innerHTML = ""; // Clear previous
 
             try {
-                const response = await fetch('/api/photos'); // backend API
+                const response = await fetch('/api/photos');
                 const photos = await response.json();
 
                 photos.forEach(photo => {
@@ -34,7 +44,47 @@
         }
 
         window.onload = loadPhotos;
+
+        // Handle file upload
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('photoInput');
+            const descriptionInput = document.getElementById('descriptionInput');
+
+            const formData = new FormData();
+            formData.append('photo', fileInput.files[0]);
+            formData.append('description', descriptionInput.value);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Add the new image to the gallery immediately
+                    const galleryDiv = document.getElementById("gallery");
+                    const img = document.createElement('img');
+                    img.src = result.photo.s3Url;
+                    img.alt = result.photo.description || result.photo.fileName;
+                    galleryDiv.appendChild(img);
+
+                    // Reset the form
+                    fileInput.value = "";
+                    descriptionInput.value = "";
+                } else {
+                    alert('Upload failed.');
+                }
+            } catch (err) {
+                console.error('Upload failed:', err);
+                alert('Failed to upload photo.');
+            }
+        });
     </script>
 </body>
 </html>
+
 
