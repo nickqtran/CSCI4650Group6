@@ -1,90 +1,236 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Minimal Photo Gallery</title>
+    <title>My Photo Gallery</title>
     <style>
-        #gallery img {
-            width: 200px;
-            margin: 10px;
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: #e5e7eb;
+        }
+
+        .page-wrapper {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.9);
+            border-bottom: 1px solid rgba(148,163,184,0.3);
+            box-shadow: 0 10px 30px rgba(15,23,42,0.8);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+            letter-spacing: 0.04em;
+        }
+
+        main {
+            flex: 1;
+            padding: 2rem 5vw 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .gallery-card {
+            background: rgba(15,23,42,0.9);
+            border-radius: 18px;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(15,23,42,0.9),
+                        0 0 0 1px rgba(148,163,184,0.25);
+        }
+
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 1rem;
+        }
+
+        #gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.25rem;
+            margin-top: 1rem;
+        }
+
+        .photo-card {
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 14px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid rgba(148,163,184,0.3);
+            box-shadow: 0 12px 20px rgba(15,23,42,0.7);
+        }
+
+        .photo-card img {
+            width: 100%;
+            border-radius: 10px;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            margin-bottom: 0.75rem;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            border: none;
+            padding: 0.5rem 1rem;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+        }
+
+        /* Upload Section */
+        .upload-card {
+            background: rgba(15,23,42,0.9);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            box-shadow: 0 15px 35px rgba(15,23,42,0.8),
+                        0 0 0 1px rgba(148,163,184,0.2);
+        }
+
+        .upload-card input, .upload-card button {
+            padding: 0.6rem;
+            margin: 0.4rem 0;
+            width: 100%;
+        }
+
+        .upload-card button {
+            background: #38bdf8;
+            border: none;
+            color: black;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .upload-card button:hover {
+            background: #0ea5e9;
         }
     </style>
 </head>
+
 <body>
-    <h1>My Photo Gallery</h1>
+<div class="page-wrapper">
+    <header>
+        <h1>My Photo Gallery</h1>
+    </header>
 
-    <!-- Upload form -->
-    <form id="uploadForm">
-        <input type="file" id="photoInput" name="photo" required>
-        <input type="text" id="descriptionInput" placeholder="Description">
-        <button type="submit">Upload</button>
-    </form>
+    <main>
 
-    <div id="gallery"></div>
+        <!-- PHOTO GALLERY -->
+        <section class="gallery-card">
+            <div class="gallery-header">
+                <h2>Recent Photos</h2>
+                <p style="color:#9ca3af;font-size:.9rem;">Loaded from AWS</p>
+            </div>
+            <div id="gallery"></div>
+        </section>
 
-    <script>
-        // Load existing photos from DynamoDB
-        async function loadPhotos() {
-            const galleryDiv = document.getElementById("gallery");
-            galleryDiv.innerHTML = ""; // Clear previous
+        <!-- UPLOAD FEATURE -->
+        <section class="upload-card">
+            <h2>Upload a Photo</h2>
+            <form id="uploadForm">
+                <input type="file" name="photo" id="photoInput" required />
+                <input type="text" name="description" placeholder="Enter description" />
+                <button type="submit">Upload</button>
+            </form>
+            <div id="uploadStatus"></div>
+        </section>
 
-            try {
-                const response = await fetch('/api/photos');
-                const photos = await response.json();
+    </main>
+</div>
 
-                photos.forEach(photo => {
-                    const img = document.createElement('img');
-                    img.src = photo.s3Url;
-                    img.alt = photo.description || photo.fileName;
-                    galleryDiv.appendChild(img);
-                });
-            } catch (err) {
-                console.error('Failed to load photos:', err);
-                galleryDiv.textContent = 'Unable to load photos at this time.';
-            }
+<script>
+    async function loadPhotos() {
+        const galleryDiv = document.getElementById("gallery");
+        galleryDiv.innerHTML = "";
+
+        try {
+            const response = await fetch('/api/photos');
+            const photos = await response.json();
+
+            photos.forEach(photo => {
+                const card = document.createElement('div');
+                card.className = 'photo-card';
+
+                const img = document.createElement('img');
+                img.src = photo.s3Url;
+
+                const delBtn = document.createElement('button');
+                delBtn.className = "delete-btn";
+                delBtn.textContent = "Delete";
+
+                delBtn.onclick = async () => {
+                    if (confirm("Delete this photo?")) {
+                        const resp = await fetch(`/api/photos/${photo.imageID}`, { method: 'DELETE' });
+                        if (resp.ok) loadPhotos();
+                        else alert("Delete failed");
+                    }
+                };
+
+                card.appendChild(img);
+                card.appendChild(delBtn);
+                galleryDiv.appendChild(card);
+            });
+        } catch (err) {
+            console.error(err);
+            galleryDiv.textContent = "Error loading photos.";
+        }
+    }
+
+    window.onload = loadPhotos;
+
+    // File Upload logic
+    const form = document.getElementById('uploadForm');
+    const statusDiv = document.getElementById('uploadStatus');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById('photoInput');
+        const description = form.description.value;
+
+        if (!fileInput.files[0]) {
+            statusDiv.textContent = 'Please select a file.';
+            return;
         }
 
-        window.onload = loadPhotos;
+        const formData = new FormData();
+        formData.append('photo', fileInput.files[0]);
+        formData.append('description', description);
 
-        // Handle file upload
-        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const fileInput = document.getElementById('photoInput');
-            const descriptionInput = document.getElementById('descriptionInput');
+        try {
+            const response = await fetch('/api/upload', { method: 'POST', body: formData });
+            const result = await response.json();
 
-            const formData = new FormData();
-            formData.append('photo', fileInput.files[0]);
-            formData.append('description', descriptionInput.value);
-
-            try {
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // Add the new image to the gallery immediately
-                    const galleryDiv = document.getElementById("gallery");
-                    const img = document.createElement('img');
-                    img.src = result.photo.s3Url;
-                    img.alt = result.photo.description || result.photo.fileName;
-                    galleryDiv.appendChild(img);
-
-                    // Reset the form
-                    fileInput.value = "";
-                    descriptionInput.value = "";
-                } else {
-                    alert('Upload failed.');
-                }
-            } catch (err) {
-                console.error('Upload failed:', err);
-                alert('Failed to upload photo.');
+            if (response.ok) {
+                statusDiv.textContent = "Upload successful!";
+                form.reset();
+                loadPhotos();
+            } else {
+                statusDiv.textContent = "Upload failed: " + result.error;
             }
-        });
-    </script>
+        } catch (err) {
+            statusDiv.textContent = "Upload failed: " + err.message;
+        }
+    });
+</script>
+
 </body>
 </html>
-
-
